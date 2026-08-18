@@ -1,0 +1,54 @@
+class Routes {
+  // --- Auth & Splash Routes ---
+  static const String splash = "/splash";
+  static const String login = "/login";
+  static const String register = "/register";
+  static const String userMainLayout = "/userMainLayout";
+  static const String changePassword = "/changePassword";
+  static const String forgotPassword = "/forgotPassword";
+  static const String otpVerification = "/otpVerification";
+  static const String resetPassword = "/resetPassword";
+  static const String onboarding = "/onboarding";
+
+  // --- User App Routes ---
+  static const String home = '/home';
+  static const String profile = '/profile';
+  static const String editProfile = '/editProfile';
+  static const String productDetails = '/productDetails';
+  static const String cart = '/cart';
+  static const String orderTracking = '/orderTracking';
+  static const String notifications = '/notifications';
+  static const String searchResults = '/searchResults';
+  static const String settings = '/settings';
+  static const String orderDetailsScreen = '/orderDetailsScreen';
+  static const String orderHistory = '/orderHistory';
+  static const String suggestProduct = '/suggestProduct';
+  static const String favorites = '/favorites';
+  static const String addresses = '/addresses';
+  static const String categories = '/categories';
+  static const String categoryProducts = '/categoryProducts';
+  static const String notificationsHistory = '/notificationsHistory';
+  static const String helpCenter = '/helpCenter';
+  static const String privacyPolicy = '/privacyPolicy';
+  static const String termsOfUse = '/termsOfUse';
+
+  // --- Admin App Routes ---
+  static const String adminHome = '/adminHome';
+  static const String adminInventory =
+      '/adminInventory'; // تم التوحيد مع الـ Drawer
+  static const String addProducts = '/addProducts';
+  static const String editProduct = '/editProduct';
+  static const String adminOrders = '/adminOrders';
+  static const String orderDetails = '/orderDetails';
+  static const String directOrders = '/directOrders';
+  static const String adminCategories = '/adminCategories';
+  static const String addCategory = '/addCategory';
+  static const String adminOffers = '/adminOffers'; // تم التوحيد مع الـ Drawer
+  static const String createOffer = '/createOffer';
+  static const String adminSuggestions = '/adminSuggestions';
+  static const String adminSettings = '/adminSettings';
+  static const String adminGeneralSettings = '/adminGeneralSettings';
+  static const String checkoutScreen = '/checkoutScreen';
+  static const String adminCategoryProducts = '/adminCategoryProducts';
+  static const String adminNotificationsHistory = '/adminNotificationsHistory';
+}

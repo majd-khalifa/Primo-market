@@ -1,0 +1,183 @@
+import 'dart:convert';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:primo/core/network/app_storage.dart';
+import 'package:primo/feature/cart/data/models/cart_item_model.dart';
+import 'package:primo/feature/cart/domain/usecases/add_to_cart_usecase.dart';
+import 'package:primo/feature/cart/domain/usecases/delete_from_cart_usecase.dart';
+import 'package:primo/feature/cart/domain/usecases/get_cart_usecase.dart';
+import 'package:primo/feature/cart/domain/usecases/update_cart_quantity_usecase.dart';
+import 'package:primo/feature/cart/presentation/cubit/cart_state.dart';
+
+class CartCubit extends Cubit<CartState> {
+  final GetCartUseCase _getCartUseCase;
+  final AddToCartUseCase _addToCartUseCase;
+  final UpdateCartQuantityUseCase _updateCartQuantityUseCase;
+  final DeleteFromCartUseCase _deleteFromCartUseCase;
+
+  List<CartItemModel> currentItems = [];
+
+  CartCubit(
+    this._getCartUseCase,
+    this._addToCartUseCase,
+    this._updateCartQuantityUseCase,
+    this._deleteFromCartUseCase,
+  ) : super(CartInitial());
+
+  double calculateTotal(List<CartItemModel> items) {
+    double sum = 0.0;
+    for (var item in items) {
+      sum += (item.newPrice * item.quantity).toDouble();
+    }
+    return sum;
+  }
+
+  Future<void> getCart({bool showLoading = true}) async {
+    bool hasCache = false;
+    if (currentItems.isEmpty) {
+      try {
+        final cached = await AppStorage.getCachedData('cache_user_cart');
+        if (cached != null) {
+          final List<dynamic> jsonList = jsonDecode(cached);
+          currentItems =
+              jsonList.map((e) => CartItemModel.fromJson(e)).toList();
+          hasCache = true;
+          if (!isClosed) {
+            emit(CartLoaded(
+                items: currentItems, totalPrice: calculateTotal(currentItems)));
+          }
+        }
+      } catch (_) {}
+    } else {
+      hasCache = true;
+    }
+
+    if (!hasCache && showLoading && !isClosed) {
+      emit(CartLoading());
+    }
+    try {
+      final result = await _getCartUseCase();
+      result.fold(
+        (failure) {
+          if (!hasCache && currentItems.isEmpty && !isClosed) {
+            emit(CartError(failure.errorMessage));
+          }
+        },
+        (items) {
+          currentItems = items;
+          try {
+            final jsonString =
+                jsonEncode(items.map((e) => e.toJson()).toList());
+            AppStorage.cacheData('cache_user_cart', jsonString);
+          } catch (_) {}
+          if (!isClosed) {
+            emit(CartLoaded(items: items, totalPrice: calculateTotal(items)));
+          }
+        },
+      );
+    } catch (e) {
+      if (!hasCache && currentItems.isEmpty && !isClosed) {
+        emit(CartError(e.toString()));
+      }
+    }
+  }
+
+  Future<void> addToCart(int variantId, int count) async {
+    if (!isClosed) emit(CartLoading());
+    try {
+      final result = await _addToCartUseCase(variantId, count);
+      result.fold(
+        (failure) {
+          if (!isClosed) emit(CartError(failure.errorMessage));
+        },
+        (msg) {
+          if (!isClosed) {
+            emit(
+              CartLoaded(
+                items: currentItems,
+                totalPrice: calculateTotal(currentItems),
+                actionMessage: msg,
+              ),
+            );
+          }
+          if (!isClosed) getCart(showLoading: false);
+        },
+      );
+    } catch (e) {
+      if (!isClosed) emit(CartError(e.toString()));
+    }
+  }
+
+  Future<void> updateQuantity(int cartId, int newCount) async {
+    if (newCount <= 0) {
+      deleteFromCart(cartId);
+      return;
+    }
+
+    final index = currentItems.indexWhere((item) => item.id == cartId);
+    if (index != -1) {
+      final oldItem = currentItems[index];
+      final updatedItem = oldItem.copyWith(
+        quantity: newCount,
+        totalPrice: oldItem.newPrice * newCount,
+      );
+      currentItems = List.from(currentItems)..[index] = updatedItem;
+      if (!isClosed) {
+        emit(
+          CartLoaded(
+            items: currentItems,
+            totalPrice: calculateTotal(currentItems),
+          ),
+        );
+      }
+    }
+
+    try {
+      final result = await _updateCartQuantityUseCase(cartId, newCount);
+      result.fold(
+        (failure) {
+          if (!isClosed) emit(CartError(failure.errorMessage));
+          if (!isClosed) getCart(showLoading: false);
+        },
+        (_) {
+          if (!isClosed) getCart(showLoading: false);
+        },
+      );
+    } catch (e) {
+      if (!isClosed) {
+        emit(CartError(e.toString()));
+        getCart(showLoading: false);
+      }
+    }
+  }
+
+  Future<void> deleteFromCart(int cartId) async {
+    currentItems = currentItems.where((item) => item.id != cartId).toList();
+    if (!isClosed) {
+      emit(
+        CartLoaded(
+          items: currentItems,
+          totalPrice: calculateTotal(currentItems),
+          actionMessage: "تم حذف المنتج من السلة",
+        ),
+      );
+    }
+
+    try {
+      final result = await _deleteFromCartUseCase(cartId);
+      result.fold(
+        (failure) {
+          if (!isClosed) emit(CartError(failure.errorMessage));
+          if (!isClosed) getCart(showLoading: false);
+        },
+        (_) {
+          if (!isClosed) getCart(showLoading: false);
+        },
+      );
+    } catch (e) {
+      if (!isClosed) {
+        emit(CartError(e.toString()));
+        getCart(showLoading: false);
+      }
+    }
+  }
+}

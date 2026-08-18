@@ -1,0 +1,223 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_screenutil_plus/flutter_screenutil_plus.dart';
+import 'package:primo/core/helper/navigation.dart';
+import 'package:primo/core/routing/routes.dart';
+import 'package:primo/core/utils/appcolor/app_colors.dart';
+import 'package:primo/core/utils/apptextstyle/app_text_style.dart';
+import 'package:primo/core/widgets/app_empty_state.dart';
+import 'package:primo/core/widgets/custom_error_retry_widget.dart';
+import 'package:primo/core/widgets/custom_app_bar.dart';
+import 'package:primo/feature/notifications/presentation/cubit/notificatins_state.dart';
+import 'package:primo/feature/notifications/presentation/cubit/notifications_cubit.dart';
+import 'package:primo/feature/orders/presentation/bloc/orders_cubit.dart';
+import 'package:primo/feature/orders/presentation/bloc/orders_state.dart';
+import 'package:primo/feature/orders/presentation/widgets/order_history_card.dart';
+
+class OrderHistoryScreen extends StatelessWidget {
+  final bool isFromBottomNav;
+  const OrderHistoryScreen({super.key, required this.isFromBottomNav});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24.w),
+              child: CustomAppBar(
+                title: "Primo",
+                suffixsIcon: isFromBottomNav ? const SizedBox() : null,
+                icon: BlocBuilder<NotificationsCubit, NotificationsState>(
+                  builder: (context, state) {
+                    // قراءة المتغير من النسخة الموحدة في الـ context
+                    final hasUnread = context
+                        .read<NotificationsCubit>()
+                        .hasUnreadNotifications;
+
+                    return Badge(
+                      isLabelVisible: hasUnread,
+                      backgroundColor: Colors.redAccent,
+                      smallSize: 12,
+                      alignment: Alignment.topRight,
+                      child: const Icon(
+                        Icons.notifications_none_rounded,
+                        color: AppColors.primary,
+                        size: 28,
+                      ),
+                    );
+                  },
+                ),
+                onRightIconTap: () {
+                  // تحديث الإشعارات محلياً والانتقال للشاشة
+                  context.read<NotificationsCubit>().markAllAsRead();
+                  context.pushNamed(Routes.notificationsHistory);
+                },
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 20.h),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "سجل الطلبات",
+                    style: AppTextStyle.font24.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textMain,
+                    ),
+                  ),
+                  Builder(
+                    builder: (context) => InkWell(
+                      onTap: () => _showFilterOptions(context),
+                      child: Row(
+                        children: [
+                          Text(
+                            "تصفية",
+                            style: AppTextStyle.font14.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.greyMedium1,
+                            ),
+                          ),
+                          4.horizontalSpace,
+                          Icon(
+                            Icons.filter_list,
+                            color: AppColors.greyMedium1,
+                            size: 20.sp,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: BlocBuilder<OrdersCubit, OrdersState>(
+                builder: (context, state) {
+                  if (state is OrdersLoading) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
+                    );
+                  } else if (state is OrdersError) {
+                    return CustomErrorRetryWidget(
+                      message: state.errorMessage,
+                      onRetry: () => context.read<OrdersCubit>().getOrders(),
+                    );
+                  }
+
+                  final orders = context.read<OrdersCubit>().currentOrders;
+
+                  if (orders.isEmpty) {
+                    return AppEmptyState(
+                      icon: Icons.receipt_long_outlined,
+                      message: "لا توجد طلبات سابقة",
+                      onRetry: () => context.read<OrdersCubit>().getOrders(),
+                    );
+                  }
+
+                  return RefreshIndicator(
+                    color: AppColors.primary,
+                    onRefresh: () async {
+                      await context.read<OrdersCubit>().getOrders();
+                    },
+                    child: ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsets.symmetric(horizontal: 24.w),
+                      itemCount: orders.length,
+                      itemBuilder: (context, index) {
+                        final order = orders[index];
+                        return OrderHistoryCard(
+                          order: order,
+                          onTap: () {
+                            Navigator.pushNamed(
+                              context,
+                              Routes.orderDetailsScreen,
+                              arguments: order,
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFilterOptions(BuildContext context) {
+    final parentContext = context;
+    final currentStatus = parentContext.read<OrdersCubit>().activeStatus;
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (_) {
+        return Padding(
+          padding: EdgeInsets.all(24.w),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "تصفية حسب الحالة",
+                style: AppTextStyle.font18.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              16.verticalSpace,
+              ListTile(
+                title: const Text("الكل"),
+                trailing: currentStatus == 'all'
+                    ? const Icon(Icons.check_circle, color: AppColors.primary)
+                    : null,
+                onTap: () {
+                  Navigator.pop(context);
+                  context.read<OrdersCubit>().getOrders(status: 'all');
+                },
+              ),
+              ListTile(
+                title: const Text("تم التسليم / مكتمل"),
+                trailing: currentStatus == 'completed'
+                    ? const Icon(Icons.check_circle, color: AppColors.primary)
+                    : null,
+                onTap: () {
+                  context.pop();
+                  context.read<OrdersCubit>().getOrders(status: 'completed');
+                },
+              ),
+              ListTile(
+                title: const Text("قيد التجهيز"),
+                trailing: currentStatus == 'processing'
+                    ? const Icon(Icons.check_circle, color: AppColors.primary)
+                    : null,
+                onTap: () {
+                  Navigator.pop(context);
+                  context.read<OrdersCubit>().getOrders(status: 'processing');
+                },
+              ),
+              ListTile(
+                title: const Text("قيد الانتظار"),
+                trailing: currentStatus == 'pending'
+                    ? const Icon(Icons.check_circle, color: AppColors.primary)
+                    : null,
+                onTap: () {
+                  Navigator.pop(context);
+                  context.read<OrdersCubit>().getOrders(status: 'pending');
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}

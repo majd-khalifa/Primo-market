@@ -1,0 +1,156 @@
+// ignore_for_file: unnecessary_underscores, deprecated_member_use
+import 'package:flutter/material.dart';
+import 'package:flutter_screenutil_plus/flutter_screenutil_plus.dart';
+import 'package:primo/core/models/product_model.dart';
+import 'package:primo/core/routing/routes.dart';
+import 'package:primo/core/utils/appcolor/app_colors.dart';
+import 'package:primo/core/utils/apptextstyle/app_text_style.dart';
+import 'package:primo/core/widgets/app_cached_network_image.dart';
+
+class FavoriteProductCard extends StatelessWidget {
+  final String title;
+  final String weight;
+  final String price;
+  final String imagePath;
+  final VoidCallback onFavoriteTap;
+  final VoidCallback onAddTap;
+  final ProductModel? product;
+
+  const FavoriteProductCard({
+    super.key,
+    required this.title,
+    required this.weight,
+    required this.price,
+    required this.imagePath,
+    required this.onFavoriteTap,
+    required this.onAddTap,
+    this.product,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isNet = !imagePath.startsWith('assets/');
+
+    return GestureDetector(
+      onTap: () {
+        if (product != null) {
+          Navigator.pushNamed(
+            context,
+            Routes.productDetails,
+            arguments: product,
+          );
+        }
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 8.h),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16.r),
+          color: AppColors.white,
+          border: Border.all(color: AppColors.formBorder, width: 0.5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                Container(
+                  height: 120.h,
+                  width: 1.sw,
+                  decoration: BoxDecoration(
+                    color: AppColors.greyBackground,
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: isNet
+                      ? AppCachedNetworkImage(
+                          imageUrl: imagePath,
+                          fit: BoxFit.cover,
+                          errorWidget: Center(
+                            child: Icon(
+                              Icons.favorite,
+                              color: AppColors.greyMedium2,
+                              size: 36.sp,
+                            ),
+                          ),
+                        )
+                      : imagePath.isNotEmpty
+                      ? Image.asset(
+                          imagePath,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Center(
+                            child: Icon(
+                              Icons.favorite,
+                              color: AppColors.greyMedium2,
+                              size: 36.sp,
+                            ),
+                          ),
+                        )
+                      : Center(
+                          child: Icon(
+                            Icons.favorite,
+                            color: AppColors.greyMedium2,
+                            size: 36.sp,
+                          ),
+                        ),
+                ),
+                Positioned(
+                  top: 8.h,
+                  left: 8.w,
+                  child: InkWell(
+                    onTap: onFavoriteTap,
+                    child: Container(
+                      padding: EdgeInsets.all(4.w),
+                      decoration: const BoxDecoration(
+                        color: AppColors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.favorite,
+                        color: AppColors.primary,
+                        size: 25.sp,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            12.verticalSpace,
+
+            Text(
+              title,
+              style: AppTextStyle.font14.copyWith(
+                fontWeight: FontWeight.w500,
+                color: AppColors.textMain,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            4.verticalSpace,
+
+            Text(
+              weight,
+              style: AppTextStyle.font12.copyWith(color: AppColors.greyMedium3),
+            ),
+
+            const Spacer(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    price,
+                    style: AppTextStyle.font20.copyWith(
+                      color: AppColors.primary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
